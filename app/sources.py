@@ -1,12 +1,23 @@
 """Where videos come from: real Telegram (TelegramSource) or fake demo data (DemoSource)."""
 import asyncio
 import json
+import os
 import re
 import subprocess
 import time
+from collections import OrderedDict
 from pathlib import Path
 
 CHUNK = 1024 * 1024  # Telegram wants offsets aligned to 1 MB chunks
+LANES = max(1, int(os.getenv("STREAM_LANES", "4")))      # chunks downloaded in parallel
+DEPTH = 2                                               # chunks each lane may read ahead
+CACHE_BYTES = int(os.getenv("STREAM_CACHE_MB", "128")) * CHUNK  # recently streamed chunks kept in RAM
+
+try:  # Telegram serves 1 MB per request, but Telethon caps requests at 512 KB (twice the round trips)
+    from telethon.client import downloads as _downloads
+    _downloads.MAX_CHUNK_SIZE = max(_downloads.MAX_CHUNK_SIZE, CHUNK)
+except (ImportError, AttributeError):
+    pass  # still works, just slower
 
 TITLE_RE = re.compile(r"Title\s*[»>:\-–]+\s*(.+)", re.I)
 EXT_RE = re.compile(r"\.(mp4|mkv|webm|mov|avi|pdf|zip|rar|pptx?|docx?|xlsx?|txt|ipynb)$", re.I)
@@ -60,6 +71,8 @@ class TelegramSource:
         (self.data_dir / "thumbs").mkdir(parents=True, exist_ok=True)
         self._msgs = {}
         self._dialogs = (0, [])
+        self._cache = OrderedDict()   # (chan, msg, chunk index) -> bytes, least recently used first
+        self._cache_size = 0
 
     async def start(self):
         if not self.client.is_connected():
@@ -137,22 +150,82 @@ class TelegramSource:
         return {"size": m.file.size, "mime": m.file.mime_type or "application/octet-stream",
                 "name": m.file.name or f"{msg_id}"}
 
+    def _cache_get(self, key):
+        chunk = self._cache.get(key)
+        if chunk is not None:
+            self._cache.move_to_end(key)
+        return chunk
+
+    def _cache_put(self, key, chunk):
+        if key in self._cache or len(chunk) > CACHE_BYTES:
+            return
+        self._cache[key] = chunk
+        self._cache_size += len(chunk)
+        while self._cache_size > CACHE_BYTES:
+            _, old = self._cache.popitem(last=False)
+            self._cache_size -= len(old)
+
+    async def _pipeline(self, m, first, last):
+        """Yield (index, chunk) for chunks first..last in order, downloading several at once.
+
+        Lane k fetches chunks first+k, first+k+n, ... (Telethon's `stride`), so n requests are in flight
+        instead of one, which is what makes streaming fast. Lanes only read ahead a little (DEPTH).
+        """
+        n = min(LANES, last - first + 1)
+        queues = [asyncio.Queue(maxsize=DEPTH) for _ in range(n)]
+
+        async def lane(k):
+            idx = first + k
+            try:
+                async with self.client.iter_download(
+                    m.document, offset=idx * CHUNK, stride=n * CHUNK,
+                    request_size=CHUNK, chunk_size=CHUNK, file_size=m.file.size,
+                ) as it:
+                    async for chunk in it:
+                        await queues[k].put(bytes(chunk))
+                        idx += n
+                        if idx > last:
+                            break
+                await queues[k].put(None)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                await queues[k].put(e)
+
+        tasks = [asyncio.create_task(lane(k)) for k in range(n)]
+        try:
+            for i in range(first, last + 1):
+                item = await queues[(i - first) % n].get()
+                if item is None:
+                    return
+                if isinstance(item, Exception):
+                    raise item
+                yield i, item
+        finally:
+            for t in tasks:
+                t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
     async def stream(self, chan, msg_id, start, end):
         m = await self._msg(chan, msg_id)
-        aligned = start - start % CHUNK
-        skip = start - aligned
-        remaining = end - start + 1
-        async with self.client.iter_download(
-            m.document, offset=aligned, request_size=CHUNK, file_size=m.file.size
-        ) as it:
-            async for chunk in it:
-                if skip:
-                    chunk, skip = chunk[skip:], 0
-                chunk = chunk[:remaining]
-                remaining -= len(chunk)
-                yield bytes(chunk)
-                if remaining <= 0:
-                    break
+        first, last = start // CHUNK, end // CHUNK
+
+        def piece(i, chunk):
+            base = i * CHUNK
+            return chunk[max(start - base, 0):end + 1 - base]
+
+        i = first
+        while i <= last:  # whatever is already in memory (seeks back, browser re-requests) costs nothing
+            chunk = self._cache_get((chan, msg_id, i))
+            if chunk is None:
+                break
+            yield piece(i, chunk)
+            i += 1
+        if i > last:
+            return
+        async for i, chunk in self._pipeline(m, i, last):
+            self._cache_put((chan, msg_id, i), chunk)
+            yield piece(i, chunk)
 
     async def thumb(self, chan, msg_id):
         path = self.data_dir / "thumbs" / f"{chan}_{msg_id}.jpg"

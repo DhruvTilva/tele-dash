@@ -54,5 +54,6 @@ It needs a small Python server (not a static site). Options: your own PC, a chea
 ## Notes
 
 - Browsers play MP4/H.264 best. Some `.mkv` files may not play in every browser; use the download option for those.
-- `pip install cryptg` makes Telegram downloads faster.
+- **Speed:** videos are fetched from Telegram in 1 MB chunks, 4 at a time in parallel, with a small in-memory cache for seeking back. Raise `STREAM_LANES` in `.env` (e.g. 6 or 8) if your internet is fast; lower it if Telegram rate-limits you.
+- `pip install cryptg` also makes Telegram downloads noticeably faster (less CPU spent decrypting). Recommended.
 - Use it for content you have the right to watch.

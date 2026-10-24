@@ -24,7 +24,7 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 PASSWORD = os.getenv("APP_PASSWORD", "")      # optional invite password for the whole site
 DEMO = os.getenv("DEMO") == "1"
 SHARED_API = (os.getenv("TG_API_ID", ""), os.getenv("TG_API_HASH", ""))  # optional default API keys for everyone
-OPEN_ENDED_CAP = 16 * 1024 * 1024  # answer "bytes=N-" requests in 16 MB slices
+OPEN_ENDED_CAP = 32 * 1024 * 1024  # answer "bytes=N-" requests in 32 MB slices
 GATE_COOKIE, SESSION_COOKIE, SETUP_COOKIE = "teledash_gate", "teledash_sess", "teledash_setup"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
