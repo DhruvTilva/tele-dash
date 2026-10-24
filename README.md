@@ -41,7 +41,7 @@ Everyone who opens the site signs in with **their own** Telegram account on the 
 - PDFs open in a built-in viewer (works on phones too) with a Download button; PDF.js is bundled in `web/vendor`, no internet needed
 - Resume where you left off, watched tick, progress bar per video (saved on the server, so PC and phone stay in sync)
 - Search, filter (videos / PDFs / unwatched), sort (oldest, newest, A-Z)
-- Sync button fetches only new messages. Keyboard: `j`/`l` -10s/+10s, `n`/`p` next/prev, space play/pause
+- Sync button fetches only new messages. The ☰ button (or `b`) collapses the channel sidebar for a bigger player. Keyboard: `j`/`l` -10s/+10s, `n`/`p` next/prev, space play/pause
 
 ## Hosting online
 

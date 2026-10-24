@@ -313,13 +313,19 @@ document.addEventListener("keydown", (e) => {
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (e.key === "j") video.currentTime -= 10;
   else if (e.key === "l") video.currentTime += 10;
+  else if (e.key === "b") toggleSidebar();
   else if (e.key === "n") step(1);
   else if (e.key === "p") step(-1);
   else if (e.key === " " && S.current) { e.preventDefault(); video.paused ? video.play() : video.pause(); }
 });
 
 /* ---------- drawer ---------- */
-$("menu").onclick = () => document.body.classList.add("drawer");
+function toggleSidebar() {
+  if (window.matchMedia("(max-width:1000px)").matches) return document.body.classList.toggle("drawer");
+  store.set("collapsed", document.body.classList.toggle("collapsed") ? "1" : "0");
+}
+$("menu").onclick = toggleSidebar;
+if (store.get("collapsed") === "1") document.body.classList.add("collapsed");
 $("scrim").onclick = () => document.body.classList.remove("drawer");
 
 /* ---------- start ---------- */
