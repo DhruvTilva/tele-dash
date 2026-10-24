@@ -51,6 +51,14 @@ It needs a small Python server (not a static site). Options: your own PC, a chea
 - Whoever hosts it stores friends' Telegram login sessions on that server, so only share it with people who trust you, and use HTTPS (the platforms above provide it).
 - Keep `data/` on a persistent disk, otherwise everyone must sign in again after a redeploy. Never share or commit it (it holds sessions).
 
+## Staying signed in on hosts that wipe their disk (e.g. free Render)
+
+Tick **Keep me signed in on this device** when connecting (on by default). The browser then keeps your Telegram session plus a copy of your watch progress and channel choices. If the server restarts and forgets everything, the page signs you back in automatically within a few seconds. With `APP_PASSWORD` set, the password cookie also survives restarts.
+
+- **Log out** (Settings) clears the saved login from the browser. Don't tick it on a shared computer: anyone using that browser could open your channels.
+- You can end the session any time from Telegram -> Settings -> Devices.
+- Only the login, progress and channel choices are restored. The video list and thumbnails are re-fetched from Telegram (a few seconds).
+
 ## Notes
 
 - Browsers play MP4/H.264 best. Some `.mkv` files may not play in every browser; use the download option for those.

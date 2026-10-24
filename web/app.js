@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const S = { chan: null, items: [], progress: {}, filter: "all", current: null, lastSave: 0 };
+const S = { uid: "", chan: null, items: [], progress: {}, filter: "all", current: null, lastSave: 0 };
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
@@ -34,6 +34,32 @@ const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : b >= 1e6 ? (b /
 const key = (it) => `${S.chan.id}:${it.id}`;
 
 /* ---------- access: password gate, Telegram setup, settings ---------- */
+/* "Keep me signed in": the browser keeps the Telegram session (and a copy of progress/prefs), so a server that
+   lost its disk (e.g. free Render restarts) can be signed back in automatically. */
+const SAVED = "saved_login";
+const forget = () => { try { localStorage.removeItem(SAVED); } catch {} };
+function getSaved() { try { return JSON.parse(store.get(SAVED)); } catch { return null; } }
+function mirror(name, value) { if (S.uid) store.set(`${name}:${S.uid}`, JSON.stringify(value)); }
+function mirrored(name, uid) { try { return JSON.parse(store.get(`${name}:${uid}`)); } catch { return null; } }
+async function rememberLogin() {
+  if (store.get("remember") === "0" || getSaved()) return;
+  const r = await fetch("/api/tg/session");
+  if (r.ok) store.set(SAVED, JSON.stringify(await r.json()));
+}
+let restoreTried = false;
+async function tryRestore() {
+  const saved = getSaved();
+  if (!saved || restoreTried) return false;
+  restoreTried = true;
+  toast("Restoring your login...");
+  const r = await post("/api/tg/restore", { ...saved, progress: mirrored("progress", saved.uid), prefs: mirrored("prefs", saved.uid) });
+  if (r.ok) return true;
+  forget();
+  const j = await r.json().catch(() => ({}));
+  toast(j.detail || "Please sign in again");
+  return false;
+}
+
 const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
 const show = (id, on) => { $(id).hidden = !on; };
 
@@ -66,6 +92,7 @@ $("setupForm").onsubmit = async (e) => {
     const url = ["", "/api/tg/start", "/api/tg/code", "/api/tg/password"][setupStep];
     const body = setupStep === 1 ? { api_id: $("apiId").value, api_hash: $("apiHash").value, phone: $("phone").value }
       : setupStep === 2 ? { code: $("code").value } : { password: $("tgPassword").value };
+    if (setupStep === 1) store.set("remember", $("remember").checked ? "1" : "0");
     const r = await post(url, body), j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || j.error || "Something went wrong");
     if (j.step === "code") setStep(2);
@@ -89,6 +116,7 @@ function renderPicker() {
 }
 async function savePrefs(ids) {
   prefs = { channels: ids };
+  mirror("prefs", prefs);
   renderChannels();
   post("/api/prefs", prefs).catch(() => toast("Couldn't save your selection"));
 }
@@ -97,10 +125,10 @@ $("pickAll").onclick = () => { savePrefs(channels.map((c) => c.id)); renderPicke
 $("pickNone").onclick = () => { savePrefs([]); renderPicker(); };
 $("settingsBtn").onclick = () => { renderPicker(); show("settings", true); document.body.classList.remove("drawer"); };
 $("settingsClose").onclick = () => show("settings", false);
-$("logoutBtn").onclick = async () => { await post("/api/logout"); location.reload(); };
+$("logoutBtn").onclick = async () => { forget(); await post("/api/logout"); location.reload(); };
 $("deleteBtn").onclick = async () => {
   if (!confirm("Disconnect Telegram and delete your saved progress from this server?")) return;
-  await post("/api/account/delete"); location.reload();
+  forget(); await post("/api/account/delete"); location.reload();
 };
 
 /* ---------- channels ---------- */
@@ -308,6 +336,7 @@ function saveProgress(force, done) {
   const isDone = done || t > d * 0.92 || (S.progress[key(S.current)] || {}).done;
   const rec = { t, d, done: isDone };
   S.progress[key(S.current)] = rec;
+  mirror("progress", S.progress);
   fetch("/api/progress", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key: key(S.current), ...rec }), keepalive: true }).catch(() => {});
 }
@@ -341,12 +370,18 @@ let booting = false;
 async function init() {
   if (booting) return;
   booting = true;
+  let again = false;
   try {
     const a = await fetch("/api/auth").then((r) => r.json());
     show("login", false); show("setup", false);
     if (!a.gate_ok) { show("login", true); $("pw").focus(); return; }
     sharedApi = a.shared_api;
-    if (!a.signed_in) return showSetup();
+    if (!a.signed_in) {
+      if (!a.demo && await tryRestore()) { again = true; return; }
+      return showSetup();
+    }
+    S.uid = a.uid;
+    rememberLogin().catch(() => {});
     $("whoami").textContent = a.name;
     show("account", !a.demo);
     if (a.demo) toast("Demo mode: fake data");
@@ -356,9 +391,10 @@ async function init() {
     try {
       [channels, S.progress, prefs] = await Promise.all([api("/api/channels"), api("/api/progress"), api("/api/prefs")]);
     } catch (e) { toast(e.message); return; }
+    mirror("progress", S.progress); mirror("prefs", prefs);
     renderChannels(); renderItems();
     const saved = shownChannels().find((c) => String(c.id) === store.get("chan:" + a.name));
     if (saved) selectChannel(saved); else document.body.classList.add("drawer");
-  } finally { booting = false; }
+  } finally { booting = false; if (again) init(); }
 }
 init();

@@ -99,10 +99,11 @@
       <p class="hint">Your account has two-step verification. Enter your Telegram password.</p>
       <input id="tgPassword" type="password" placeholder="Telegram password" autocomplete="off">
     </div>
+    <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in on this device</label>
     <button type="submit" id="setupBtn" class="primary">Send code</button>
     <button type="button" id="setupBack" class="ghost" hidden>Start over</button>
     <p id="setupErr" class="err"></p>
-    <p class="hint small">Your keys and login stay on this server, only used to read your own Telegram channels.</p>
+    <p class="hint small">Your keys and login are only used to read your own Telegram channels. "Keep me signed in" saves them in this browser, so you stay signed in even if the server restarts. Do not tick it on a shared computer.</p>
   </form>
 </div>
 

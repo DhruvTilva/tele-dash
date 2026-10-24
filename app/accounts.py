@@ -119,22 +119,50 @@ class Accounts:
         await p["client"].sign_in(password=password)
         return await self._finish(token)
 
-    async def _finish(self, token):
-        p = self.pending.pop(token)
-        client = p["client"]
+    async def _save(self, client, api_id, api_hash):
         me = await client.get_me()
         uid = str(me.id)
         d = self.user_dir(uid)
         d.mkdir(parents=True, exist_ok=True)
         name = " ".join(x for x in (me.first_name, me.last_name) if x) or me.username or uid
         f = d / "account.json"
-        f.write_text(json.dumps({"api_id": p["api_id"], "api_hash": p["api_hash"],
+        f.write_text(json.dumps({"api_id": api_id, "api_hash": api_hash,
                                  "session": client.session.save(), "name": name}))
         os.chmod(f, 0o600)
         old = self.live.pop(uid, None)
         if old:
             await old.stop()
         self.live[uid] = TelegramSource(client, d)
+        return uid
+
+    async def _finish(self, token):
+        p = self.pending.pop(token)
+        return await self._save(p["client"], p["api_id"], p["api_hash"])
+
+    def session_info(self, uid):
+        """What the browser stores to sign itself in again after the server lost its data."""
+        acc = json.loads((self.user_dir(uid) / "account.json").read_text())
+        return {"uid": uid, "api_id": acc["api_id"], "api_hash": acc["api_hash"], "session": acc["session"]}
+
+    async def restore(self, api_id, api_hash, session, progress=None, prefs=None):
+        """Sign in again from a session the browser saved (the server's disk may have been wiped)."""
+        try:
+            api_id = int(api_id)
+            client = TelegramClient(StringSession(str(session)), api_id, str(api_hash))
+        except (TypeError, ValueError):
+            raise ValueError("The saved login is invalid. Please sign in again.")
+        await client.connect()
+        if not await client.is_user_authorized():
+            await client.disconnect()
+            raise ValueError("Your saved Telegram login expired. Please sign in again.")
+        uid = await self._save(client, api_id, str(api_hash))
+        d = self.user_dir(uid)
+        if isinstance(progress, dict) and not (d / "progress.json").exists():
+            clean = {str(k): {"t": float(v.get("t", 0)), "d": float(v.get("d", 0)), "done": bool(v.get("done"))}
+                     for k, v in list(progress.items())[:20000] if isinstance(v, dict)}
+            (d / "progress.json").write_text(json.dumps(clean))
+        if isinstance(prefs, dict) and not (d / "prefs.json").exists():
+            (d / "prefs.json").write_text(json.dumps({"channels": [int(c) for c in prefs.get("channels", [])]}))
         return uid
 
     async def delete(self, uid):

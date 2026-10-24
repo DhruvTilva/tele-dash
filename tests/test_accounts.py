@@ -20,7 +20,7 @@ class FakeClient:
 
     def __init__(self, session, api_id, api_hash):
         self.session = session
-        self.phone = None
+        self.phone = session.s[5:] or None   # a restored session remembers whose it is
         self.connected = False
 
     async def connect(self): self.connected = True
@@ -56,8 +56,8 @@ class FakeClient:
 
 @pytest.fixture
 def make_app(tmp_path, monkeypatch):
-    def build(password=""):
-        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    def build(password="", data_dir=None):
+        monkeypatch.setenv("DATA_DIR", str(data_dir or tmp_path))
         monkeypatch.setenv("APP_PASSWORD", password)
         monkeypatch.delenv("DEMO", raising=False)
         monkeypatch.delenv("TG_API_ID", raising=False)
@@ -150,3 +150,35 @@ def test_channel_selection_is_saved_per_person(make_app):
         a.post("/api/prefs", json={"channels": [-100123, -100456]})
         assert a.get("/api/prefs").json() == {"channels": [-100123, -100456]}
         assert b.get("/api/prefs").json() == {"channels": []}
+
+
+def test_browser_can_restore_login_after_server_loses_its_disk(make_app, tmp_path):
+    """Simulates a free Render restart: new empty data dir, browser sends back what it saved."""
+    with TestClient(make_app("friends", tmp_path / "before")) as c:
+        c.post("/api/login", json={"password": "friends"})
+        sign_in(c, "+919876543210")
+        saved = c.get("/api/tg/session").json()
+        assert saved["session"] == "sess-+919876543210" and saved["uid"]
+        cookies = dict(c.cookies)
+
+    with TestClient(make_app("friends", tmp_path / "after"), cookies=cookies) as c2:
+        auth = c2.get("/api/auth").json()
+        assert auth["gate_ok"] is True        # password cookie survives the restart
+        assert auth["signed_in"] is False     # but the server forgot the Telegram login
+        r = c2.post("/api/tg/restore", json={
+            **saved, "progress": {"k": {"t": 7, "d": 10, "done": False}}, "prefs": {"channels": [-100123]}})
+        assert r.status_code == 200, r.text
+        assert c2.get("/api/auth").json()["signed_in"] is True
+        assert c2.get("/api/progress").json()["k"]["t"] == 7
+        assert c2.get("/api/prefs").json() == {"channels": [-100123]}
+        assert c2.get("/api/channels").json()[0]["title"].endswith("+919876543210")
+
+
+def test_restore_rejects_expired_or_garbage_logins(make_app):
+    with TestClient(make_app()) as c:
+        r = c.post("/api/tg/restore", json={"api_id": "1", "api_hash": "a", "session": ""})
+        assert r.status_code == 400 and "expired" in r.json()["detail"]
+        r = c.post("/api/tg/restore", json={"api_id": "nope", "api_hash": "a", "session": "x"})
+        assert r.status_code == 400 and "invalid" in r.json()["detail"]
+        assert c.get("/api/auth").json()["signed_in"] is False
+        assert c.get("/api/tg/session").status_code == 401

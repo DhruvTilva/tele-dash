@@ -29,10 +29,13 @@ GATE_COOKIE, SESSION_COOKIE, SETUP_COOKIE = "teledash_gate", "teledash_sess", "t
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 SECRET_FILE = DATA_DIR / "secret.key"
-if not SECRET_FILE.exists():
-    SECRET_FILE.write_text(secrets.token_hex(32))
-    os.chmod(SECRET_FILE, 0o600)
-SECRET = SECRET_FILE.read_text().strip().encode()
+if PASSWORD:  # derived from the password, so logins survive restarts on hosts that wipe the disk
+    SECRET = hashlib.sha256(("tele-dash:" + PASSWORD).encode()).digest()
+else:
+    if not SECRET_FILE.exists():
+        SECRET_FILE.write_text(secrets.token_hex(32))
+        os.chmod(SECRET_FILE, 0o600)
+    SECRET = SECRET_FILE.read_text().strip().encode()
 progress_lock = asyncio.Lock()
 
 
@@ -99,7 +102,7 @@ async def auth_status(request: Request):
     ok = gate_ok(request)
     uid = session_uid(request) if ok else None
     src = (app.state.demo if DEMO else await app.state.accounts.get(uid)) if (ok and (DEMO or uid)) else None
-    return {"gate": bool(PASSWORD), "gate_ok": ok, "signed_in": bool(src), "demo": DEMO,
+    return {"gate": bool(PASSWORD), "gate_ok": ok, "signed_in": bool(src), "demo": DEMO, "uid": uid if src else "",
             "name": "Demo" if DEMO else (app.state.accounts.name(uid) if src else ""),
             "shared_api": all(SHARED_API)}
 
@@ -159,6 +162,19 @@ async def tg_code(request: Request):
 async def tg_password(request: Request):
     body = await request.json()
     uid = await run_step(app.state.accounts.password(request.cookies.get(SETUP_COOKIE), body.get("password", "")))
+    return signed_in_response(request, uid)
+
+
+@app.get("/api/tg/session")
+async def tg_session(request: Request, src=Source):
+    return app.state.accounts.session_info(session_uid(request))
+
+
+@app.post("/api/tg/restore")
+async def tg_restore(request: Request):
+    body = await request.json()
+    uid = await run_step(app.state.accounts.restore(
+        body.get("api_id"), body.get("api_hash"), body.get("session"), body.get("progress"), body.get("prefs")))
     return signed_in_response(request, uid)
 
 
