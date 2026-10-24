@@ -187,6 +187,20 @@ async def items(cid: int, refresh: str = "", src=Source):
     return await src.items(cid, full=refresh == "full")
 
 
+@app.get("/api/prefs")
+async def get_prefs(src=Source):
+    f = src.data_dir / "prefs.json"
+    return json.loads(f.read_text()) if f.exists() else {"channels": []}
+
+
+@app.post("/api/prefs")
+async def set_prefs(request: Request, src=Source):
+    body = await request.json()
+    prefs = {"channels": [int(c) for c in body.get("channels", [])]}
+    (src.data_dir / "prefs.json").write_text(json.dumps(prefs))
+    return prefs
+
+
 @app.get("/api/progress")
 async def get_progress(src=Source):
     f = src.data_dir / "progress.json"

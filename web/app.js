@@ -71,7 +71,27 @@ $("setupForm").onsubmit = async (e) => {
   btn.disabled = false;
 };
 
-$("settingsBtn").onclick = () => { show("settings", true); document.body.classList.remove("drawer"); };
+function renderPicker() {
+  const q = $("pickSearch").value.toLowerCase(), picked = new Set(prefs.channels), box = $("pickList");
+  box.replaceChildren();
+  for (const c of channels.filter((c) => c.title.toLowerCase().includes(q))) {
+    const label = el("label"), cb = el("input");
+    cb.type = "checkbox"; cb.checked = picked.has(c.id);
+    cb.onchange = () => savePrefs(cb.checked ? [...prefs.channels, c.id] : prefs.channels.filter((id) => id !== c.id));
+    label.append(cb, el("span", "", c.title));
+    box.append(label);
+  }
+  if (!box.children.length) box.append(el("div", "empty", "No channels found"));
+}
+async function savePrefs(ids) {
+  prefs = { channels: ids };
+  renderChannels();
+  post("/api/prefs", prefs).catch(() => toast("Couldn't save your selection"));
+}
+$("pickSearch").oninput = renderPicker;
+$("pickAll").onclick = () => { savePrefs(channels.map((c) => c.id)); renderPicker(); };
+$("pickNone").onclick = () => { savePrefs([]); renderPicker(); };
+$("settingsBtn").onclick = () => { renderPicker(); show("settings", true); document.body.classList.remove("drawer"); };
 $("settingsClose").onclick = () => show("settings", false);
 $("logoutBtn").onclick = async () => { await post("/api/logout"); location.reload(); };
 $("deleteBtn").onclick = async () => {
@@ -80,11 +100,16 @@ $("deleteBtn").onclick = async () => {
 };
 
 /* ---------- channels ---------- */
-let channels = [];
+let channels = [], prefs = { channels: [] };
+// only the channels ticked in Settings; nothing ticked means show everything
+function shownChannels() {
+  const picked = new Set(prefs.channels);
+  return picked.size ? channels.filter((c) => picked.has(c.id)) : channels;
+}
 function renderChannels() {
   const q = $("chanSearch").value.toLowerCase();
   const box = $("channels"); box.replaceChildren();
-  for (const c of channels.filter((c) => c.title.toLowerCase().includes(q))) {
+  for (const c of shownChannels().filter((c) => c.title.toLowerCase().includes(q))) {
     const b = el("button", S.chan && S.chan.id === c.id ? "on" : "", c.title);
     b.onclick = () => { selectChannel(c); document.body.classList.remove("drawer"); };
     box.append(b);
@@ -309,16 +334,16 @@ async function init() {
     sharedApi = a.shared_api;
     if (!a.signed_in) return showSetup();
     $("whoami").textContent = a.name;
-    $("settingsBtn").hidden = a.demo;
+    show("account", !a.demo);
     if (a.demo) toast("Demo mode: fake data");
     $("sort").value = store.get("sort") || "old";
     $("speed").value = store.get("speed") || "1";
     $("autoplay").checked = store.get("autoplay") !== "0";
     try {
-      [channels, S.progress] = await Promise.all([api("/api/channels"), api("/api/progress")]);
+      [channels, S.progress, prefs] = await Promise.all([api("/api/channels"), api("/api/progress"), api("/api/prefs")]);
     } catch (e) { toast(e.message); return; }
     renderChannels(); renderItems();
-    const saved = channels.find((c) => String(c.id) === store.get("chan:" + a.name));
+    const saved = shownChannels().find((c) => String(c.id) === store.get("chan:" + a.name));
     if (saved) selectChannel(saved); else document.body.classList.add("drawer");
   } finally { booting = false; }
 }

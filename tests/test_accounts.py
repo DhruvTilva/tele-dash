@@ -140,3 +140,13 @@ def test_delete_account_revokes_and_wipes(make_app, tmp_path):
         assert "+919999999999" in FakeClient.logged_out
         assert not any(p.is_dir() for p in (tmp_path / "users").iterdir())
         assert c.get("/api/auth").json()["signed_in"] is False
+
+
+def test_channel_selection_is_saved_per_person(make_app):
+    app = make_app()
+    with TestClient(app) as a, TestClient(app) as b:
+        sign_in(a, "+911111111111"); sign_in(b, "+922222222222")
+        assert a.get("/api/prefs").json() == {"channels": []}
+        a.post("/api/prefs", json={"channels": [-100123, -100456]})
+        assert a.get("/api/prefs").json() == {"channels": [-100123, -100456]}
+        assert b.get("/api/prefs").json() == {"channels": []}

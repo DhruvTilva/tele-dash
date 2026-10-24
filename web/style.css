@@ -88,6 +88,18 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100
   padding: 6px 14px; font-size: 13px; color: var(--dim); }
 #pdfStatus:empty { display: none; }
 
+/* settings: channel picker */
+.card h3 { margin: 6px 0 0; font-size: 15px; }
+#account { display: flex; flex-direction: column; gap: 12px; }
+.card > .pickrow { flex-direction: row; }
+.pickrow button { flex: 1; }
+#pickList { max-height: 38vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+#pickList label { display: flex; gap: 10px; align-items: center; padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+#pickList label:last-child { border-bottom: 0; }
+#pickList label:hover { background: var(--panel2); }
+#pickList input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+#pickList span { min-width: 0; overflow-wrap: anywhere; }
+
 /* overlays (password gate, Telegram setup, settings) + toast */
 .overlay { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 50; padding: 16px; overflow-y: auto; }
 #settings { background: rgba(0,0,0,.6); }

@@ -35,6 +35,7 @@ Everyone who opens the site signs in with **their own** Telegram account on the 
 
 ## Features
 
+- Choose which channels appear in the sidebar from **Settings -> My channels**
 - Channel list on the left (a drawer on mobile); videos and PDFs in sequence order with clean titles taken from the `Title » ...` caption line
 - Streaming playback with seek, speed control, autoplay next, prev/next
 - PDFs open in a built-in viewer (works on phones too) with a Download button; PDF.js is bundled in `web/vendor`, no internet needed

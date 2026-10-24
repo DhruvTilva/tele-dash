@@ -109,11 +109,19 @@
 <div id="settings" class="overlay" hidden>
   <div class="card">
     <h2>Settings</h2>
-    <p class="hint">Signed in as <b id="whoami">—</b></p>
-    <button id="logoutBtn" class="ghost">Log out on this device</button>
-    <button id="deleteBtn" class="danger">Disconnect Telegram &amp; delete my data</button>
-    <p class="hint small">Disconnecting ends this app's Telegram session and removes your saved progress from the server.
-      To use the app on another device, sign in there with the same API keys and phone number.</p>
+    <h3>My channels</h3>
+    <p class="hint">Tick the channels to show in the sidebar. Nothing ticked = show all.</p>
+    <input id="pickSearch" type="search" placeholder="Search channels..." autocomplete="off">
+    <div class="pickrow"><button id="pickAll" class="ghost">Select all</button><button id="pickNone" class="ghost">Clear</button></div>
+    <div id="pickList"></div>
+    <div id="account">
+      <h3>Account</h3>
+      <p class="hint">Signed in as <b id="whoami">—</b></p>
+      <button id="logoutBtn" class="ghost">Log out on this device</button>
+      <button id="deleteBtn" class="danger">Disconnect Telegram &amp; delete my data</button>
+      <p class="hint small">Disconnecting ends this app's Telegram session and removes your saved progress from the server.
+        To use the app on another device, sign in there with the same API keys and phone number.</p>
+    </div>
     <button id="settingsClose" class="primary">Close</button>
   </div>
 </div>
