@@ -34,22 +34,19 @@ def kind_of(mime):
 class TelegramSource:
     demo = False
 
-    def __init__(self, api_id, api_hash, data_dir, session_string=""):
-        from telethon import TelegramClient
-        from telethon.sessions import StringSession
-
+    def __init__(self, client, data_dir):
+        self.client = client
         self.data_dir = Path(data_dir)
         (self.data_dir / "items").mkdir(parents=True, exist_ok=True)
         (self.data_dir / "thumbs").mkdir(parents=True, exist_ok=True)
-        session = StringSession(session_string) if session_string else str(self.data_dir / "tele-dash")
-        self.client = TelegramClient(session, api_id, api_hash)
         self._msgs = {}
         self._dialogs = (0, [])
 
     async def start(self):
-        await self.client.connect()
+        if not self.client.is_connected():
+            await self.client.connect()
         if not await self.client.is_user_authorized():
-            raise RuntimeError("Telegram is not logged in yet. Run:  python login.py")
+            raise RuntimeError("Telegram session is no longer valid. Sign in again.")
 
     async def stop(self):
         await self.client.disconnect()
@@ -156,6 +153,8 @@ class DemoSource:
     def __init__(self, data_dir):
         self.dir = Path(data_dir) / "demo"
         self.dir.mkdir(parents=True, exist_ok=True)
+        self.data_dir = Path(data_dir) / "users" / "demo"
+        (self.data_dir / "items").mkdir(parents=True, exist_ok=True)
         self.video = self.dir / "sample.mp4"
         self.pdf = self.dir / "sample.pdf"
 

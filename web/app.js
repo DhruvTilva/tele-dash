@@ -18,7 +18,7 @@ function toast(msg) {
 }
 async function api(url, opts) {
   const r = await fetch(url, opts);
-  if (r.status === 401) { showLogin(); throw new Error("login required"); }
+  if (r.status === 401) { init(); throw new Error("Please sign in"); }
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   return r.json();
 }
@@ -29,16 +29,55 @@ const fmtTime = (s) => {
 const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
 const key = (it) => `${S.chan.id}:${it.id}`;
 
-/* ---------- login ---------- */
-function showLogin() { $("login").hidden = false; $("pw").focus(); }
+/* ---------- access: password gate, Telegram setup, settings ---------- */
+const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+const show = (id, on) => { $(id).hidden = !on; };
+
 $("loginForm").onsubmit = async (e) => {
   e.preventDefault();
-  const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: $("pw").value }) });
-  if (r.ok) { $("login").hidden = true; $("loginErr").textContent = ""; init(); }
+  const r = await post("/api/login", { password: $("pw").value });
+  if (r.ok) { $("loginErr").textContent = ""; init(); }
   else $("loginErr").textContent = "Wrong password";
 };
-$("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.reload(); };
+
+let setupStep = 1, sharedApi = false;
+function setStep(n) {
+  setupStep = n;
+  show("s1", n === 1); show("s2", n === 2); show("s3", n === 3); show("setupBack", n > 1);
+  $("setupBtn").textContent = ["", "Send code", "Verify code", "Sign in"][n];
+  $("setupErr").textContent = "";
+  $(["", "phone", "code", "tgPassword"][n]).focus();
+}
+function showSetup() {
+  show("setup", true);
+  show("apiFields", !sharedApi); show("sharedNote", sharedApi);
+  setStep(1);
+}
+$("ownKeys").onclick = (e) => { e.preventDefault(); sharedApi = false; show("apiFields", true); show("sharedNote", false); };
+$("setupBack").onclick = () => setStep(1);
+$("setupForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $("setupBtn"); btn.disabled = true; $("setupErr").textContent = "";
+  try {
+    const url = ["", "/api/tg/start", "/api/tg/code", "/api/tg/password"][setupStep];
+    const body = setupStep === 1 ? { api_id: $("apiId").value, api_hash: $("apiHash").value, phone: $("phone").value }
+      : setupStep === 2 ? { code: $("code").value } : { password: $("tgPassword").value };
+    const r = await post(url, body), j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || j.error || "Something went wrong");
+    if (j.step === "code") setStep(2);
+    else if (j.step === "password") setStep(3);
+    else if (j.step === "done") { ["code", "tgPassword"].forEach((i) => ($(i).value = "")); show("setup", false); init(); }
+  } catch (err) { $("setupErr").textContent = err.message; }
+  btn.disabled = false;
+};
+
+$("settingsBtn").onclick = () => { show("settings", true); document.body.classList.remove("drawer"); };
+$("settingsClose").onclick = () => show("settings", false);
+$("logoutBtn").onclick = async () => { await post("/api/logout"); location.reload(); };
+$("deleteBtn").onclick = async () => {
+  if (!confirm("Disconnect Telegram and delete your saved progress from this server?")) return;
+  await post("/api/account/delete"); location.reload();
+};
 
 /* ---------- channels ---------- */
 let channels = [];
@@ -55,7 +94,7 @@ function renderChannels() {
 $("chanSearch").oninput = renderChannels;
 
 async function selectChannel(c) {
-  S.chan = c; store.set("chan", c.id);
+  S.chan = c; store.set("chan:" + $("whoami").textContent, c.id);
   $("courseTitle").textContent = c.title;
   S.items = []; stopPlayer(); renderChannels(); renderItems();
   $("summary").textContent = "Loading...";
@@ -205,19 +244,28 @@ $("menu").onclick = () => document.body.classList.add("drawer");
 $("scrim").onclick = () => document.body.classList.remove("drawer");
 
 /* ---------- start ---------- */
+let booting = false;
 async function init() {
-  const a = await fetch("/api/auth").then((r) => r.json());
-  if (a.required && !a.ok) return showLogin();
-  $("logout").hidden = !a.required;
-  if (a.demo) toast("Demo mode: fake data");
-  $("sort").value = store.get("sort") || "old";
-  $("speed").value = store.get("speed") || "1";
-  $("autoplay").checked = store.get("autoplay") !== "0";
+  if (booting) return;
+  booting = true;
   try {
-    [channels, S.progress] = await Promise.all([api("/api/channels"), api("/api/progress")]);
-  } catch (e) { toast(e.message); return; }
-  renderChannels(); renderItems();
-  const saved = channels.find((c) => String(c.id) === store.get("chan"));
-  if (saved) selectChannel(saved); else document.body.classList.add("drawer");
+    const a = await fetch("/api/auth").then((r) => r.json());
+    show("login", false); show("setup", false);
+    if (!a.gate_ok) { show("login", true); $("pw").focus(); return; }
+    sharedApi = a.shared_api;
+    if (!a.signed_in) return showSetup();
+    $("whoami").textContent = a.name;
+    $("settingsBtn").hidden = a.demo;
+    if (a.demo) toast("Demo mode: fake data");
+    $("sort").value = store.get("sort") || "old";
+    $("speed").value = store.get("speed") || "1";
+    $("autoplay").checked = store.get("autoplay") !== "0";
+    try {
+      [channels, S.progress] = await Promise.all([api("/api/channels"), api("/api/progress")]);
+    } catch (e) { toast(e.message); return; }
+    renderChannels(); renderItems();
+    const saved = channels.find((c) => String(c.id) === store.get("chan:" + a.name));
+    if (saved) selectChannel(saved); else document.body.classList.add("drawer");
+  } finally { booting = false; }
 }
 init();

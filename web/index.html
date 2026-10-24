@@ -13,7 +13,7 @@
     <div class="brand">Tele Dash</div>
     <input id="chanSearch" type="search" placeholder="Search channels..." autocomplete="off">
     <nav id="channels"></nav>
-    <button id="logout" class="ghost" hidden>Log out</button>
+    <button id="settingsBtn" class="ghost">⚙ Settings</button>
   </aside>
   <div id="scrim"></div>
 
@@ -67,13 +67,55 @@
   </main>
 </div>
 
-<div id="login" hidden>
-  <form id="loginForm">
+<div id="login" class="overlay" hidden>
+  <form id="loginForm" class="card">
     <h2>Tele Dash</h2>
+    <p class="hint">Enter the access password you were given.</p>
     <input id="pw" type="password" placeholder="Password" autocomplete="current-password" required>
-    <button type="submit">Log in</button>
-    <p id="loginErr"></p>
+    <button type="submit" class="primary">Continue</button>
+    <p id="loginErr" class="err"></p>
   </form>
+</div>
+
+<div id="setup" class="overlay" hidden>
+  <form id="setupForm" class="card">
+    <h2>Connect your Telegram</h2>
+    <div id="s1">
+      <div id="apiFields">
+        <p class="hint">Open <a href="https://my.telegram.org" target="_blank" rel="noopener">my.telegram.org</a>, log in,
+          choose <b>API development tools</b>, create an app (any name), then copy the two values below.</p>
+        <input id="apiId" inputmode="numeric" placeholder="API ID (numbers)" autocomplete="off">
+        <input id="apiHash" placeholder="API hash" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+      <p id="sharedNote" class="hint" hidden>This site already has API keys set up, so you only need your phone number.
+        <a href="#" id="ownKeys">Use my own keys instead</a></p>
+      <input id="phone" type="tel" placeholder="Phone number with country code, e.g. +919876543210" autocomplete="tel">
+    </div>
+    <div id="s2" hidden>
+      <p class="hint">Telegram sent a login code to your <b>Telegram app</b> (or SMS). Enter it here.</p>
+      <input id="code" inputmode="numeric" placeholder="Login code" autocomplete="one-time-code">
+    </div>
+    <div id="s3" hidden>
+      <p class="hint">Your account has two-step verification. Enter your Telegram password.</p>
+      <input id="tgPassword" type="password" placeholder="Telegram password" autocomplete="off">
+    </div>
+    <button type="submit" id="setupBtn" class="primary">Send code</button>
+    <button type="button" id="setupBack" class="ghost" hidden>Start over</button>
+    <p id="setupErr" class="err"></p>
+    <p class="hint small">Your keys and login stay on this server, only used to read your own Telegram channels.</p>
+  </form>
+</div>
+
+<div id="settings" class="overlay" hidden>
+  <div class="card">
+    <h2>Settings</h2>
+    <p class="hint">Signed in as <b id="whoami">—</b></p>
+    <button id="logoutBtn" class="ghost">Log out on this device</button>
+    <button id="deleteBtn" class="danger">Disconnect Telegram &amp; delete my data</button>
+    <p class="hint small">Disconnecting ends this app's Telegram session and removes your saved progress from the server.
+      To use the app on another device, sign in there with the same API keys and phone number.</p>
+    <button id="settingsClose" class="primary">Close</button>
+  </div>
 </div>
 <div id="toast"></div>
 <script src="app.js"></script>

@@ -13,19 +13,25 @@ Open http://localhost:8000
 
 ## Use it with your Telegram
 
-1. Go to https://my.telegram.org -> *API development tools* -> create an app, and copy `api_id` and `api_hash`.
-2. `cp .env.example .env` and fill in `TG_API_ID` and `TG_API_HASH`.
-3. Log in once (enter phone number, then the code Telegram sends you):
-   ```bash
-   python login.py
-   ```
-4. Start the dashboard:
+1. Start the dashboard:
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
-5. Open http://localhost:8000, pick your channel, click a video.
+2. Open http://localhost:8000. The first screen asks you to connect Telegram:
+   - Get your **API ID** and **API hash** at https://my.telegram.org -> *API development tools* -> create an app (any name).
+   - Enter them with your phone number, then the login code Telegram sends to your Telegram app (and your 2-step password if you have one).
+3. Pick your channel and click a video. That's it - no `.env` file needed.
 
 To open it on your phone while on the same Wi-Fi, use `http://<your-pc-ip>:8000`.
+
+## Sharing with friends
+
+Everyone who opens the site signs in with **their own** Telegram account on the same setup screen. Each person gets a private space on the server (their own session, channel list, and watch progress), so friends never see your channels or each other's.
+
+- Set `APP_PASSWORD` as an invite password so only people you give it to can reach the site.
+- Optional: put your own `TG_API_ID` / `TG_API_HASH` in `.env` and friends only need a phone number (they can still choose to use their own keys).
+- **Settings** (bottom of the sidebar) lets anyone log out on that device, or disconnect Telegram and delete their data from the server.
+- Signing in on a second device (e.g. phone) repeats the same setup there; progress is shared because it's tied to the Telegram account.
 
 ## Features
 
@@ -39,10 +45,9 @@ To open it on your phone while on the same Wi-Fi, use `http://<your-pc-ip>:8000`
 
 It needs a small Python server (not a static site). Options: your own PC, a cheap VPS, or Render/Railway/Fly.
 
-- **Always set `APP_PASSWORD`** when it is reachable from the internet. Anyone who gets in can browse every channel of your Telegram account.
-- Run `python login.py --string` locally and put the printed value in `TG_SESSION_STRING` on the host, so you don't need to log in on the server. Treat that string like a password.
-- Keep `data/` on a persistent disk to keep watch progress and the item cache.
-- Put it behind HTTPS (the platforms above do this for you).
+- **Set `APP_PASSWORD`** when it is reachable from the internet.
+- Whoever hosts it stores friends' Telegram login sessions on that server, so only share it with people who trust you, and use HTTPS (the platforms above provide it).
+- Keep `data/` on a persistent disk, otherwise everyone must sign in again after a redeploy. Never share or commit it (it holds sessions).
 
 ## Notes
 

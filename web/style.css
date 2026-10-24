@@ -22,9 +22,9 @@ button { cursor: pointer; }
 #channels button.on { background: var(--accent); color: #04121f; font-weight: 600; }
 #scrim { display: none; }
 
-input[type=search], input[type=password], select {
+input:not([type=checkbox]), select {
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
-input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input:not([type=checkbox]):focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .ghost { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
 .ghost:hover { border-color: var(--accent); }
 .icon { background: none; border: 0; font-size: 22px; width: 40px; height: 40px; border-radius: 8px; }
@@ -76,12 +76,21 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100
 .item .bar i { display: block; height: 100%; background: var(--accent); }
 .empty { padding: 24px; text-align: center; color: var(--dim); }
 
-/* login + toast */
-#login { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 50; padding: 16px; }
-#loginForm { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; }
-#loginForm h2 { margin: 0 0 4px; text-align: center; }
-#loginForm button { background: var(--accent); color: #04121f; border: 0; border-radius: 8px; padding: 11px; font-weight: 600; }
-#loginErr { color: #ff7b72; margin: 0; min-height: 1.4em; text-align: center; }
+/* overlays (password gate, Telegram setup, settings) + toast */
+.overlay { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 50; padding: 16px; overflow-y: auto; }
+#settings { background: rgba(0,0,0,.6); }
+.card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.card h2 { margin: 0; text-align: center; }
+.card a { color: var(--accent); }
+.hint { color: var(--dim); margin: 0; font-size: 14px; }
+.hint.small { font-size: 12px; }
+.card > div { display: flex; flex-direction: column; gap: 12px; }
+#apiFields { display: flex; flex-direction: column; gap: 12px; }
+.primary { background: var(--accent); color: #04121f; border: 0; border-radius: 8px; padding: 11px; font-weight: 600; }
+.primary:disabled { opacity: .6; }
+.danger { background: none; border: 1px solid #ff7b72; color: #ff7b72; border-radius: 8px; padding: 10px; }
+.err { color: #ff7b72; margin: 0; min-height: 1.2em; text-align: center; font-size: 14px; }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line);
   padding: 10px 16px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 60; max-width: 90vw; }
 #toast.show { opacity: 1; }
