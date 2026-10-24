@@ -179,8 +179,43 @@ $("chips").onclick = (e) => {
 const video = $("video");
 function open(it) {
   if (it.kind === "video") return play(it, true);
-  window.open(`/stream/${S.chan.id}/${it.id}${it.kind === "pdf" ? "" : "?download=1"}`, "_blank");
+  if (it.kind === "pdf") return openPdf(it);
+  window.open(`/stream/${S.chan.id}/${it.id}?download=1`, "_blank");
 }
+
+/* ---------- PDF viewer (PDF.js, bundled in web/vendor) ---------- */
+let pdfRun = 0;
+async function openPdf(it) {
+  const run = ++pdfRun, box = $("pdfPages"), status = $("pdfStatus");
+  const url = `/stream/${S.chan.id}/${it.id}`;
+  $("pdfTitle").textContent = it.title;
+  $("pdfDownload").href = url + "?download=1";
+  box.replaceChildren(); status.textContent = "Loading PDF...";
+  show("pdfView", true);
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js";
+    const doc = await pdfjsLib.getDocument({ url }).promise;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for (let n = 1; n <= doc.numPages; n++) {
+      status.textContent = `Rendering page ${n} of ${doc.numPages}...`;
+      const page = await doc.getPage(n);
+      if (run !== pdfRun) return;
+      const width = box.clientWidth - 16;
+      const scale = Math.min(width / page.getViewport({ scale: 1 }).width, 3);
+      const vp = page.getViewport({ scale: scale * dpr });
+      const canvas = el("canvas");
+      canvas.width = vp.width; canvas.height = vp.height;
+      canvas.style.width = vp.width / dpr + "px";
+      box.append(canvas);
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+    }
+    if (run === pdfRun) status.textContent = "";
+  } catch (e) {
+    if (run === pdfRun) status.textContent = "Can't show this PDF here. Use Download.";
+  }
+}
+function closePdf() { pdfRun++; show("pdfView", false); $("pdfPages").replaceChildren(); }
+$("pdfClose").onclick = closePdf;
 function play(it, autostart) {
   saveProgress(true);
   S.current = it; store.set("last:" + S.chan.id, it.id);
@@ -231,6 +266,7 @@ video.onended = () => { saveProgress(true, true); renderItems(); if ($("autoplay
 video.onerror = () => { if (S.current) toast("Can't play this video in the browser (format or network problem)"); };
 window.addEventListener("pagehide", () => saveProgress(true));
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("pdfView").hidden) return closePdf();
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (e.key === "j") video.currentTime -= 10;
   else if (e.key === "l") video.currentTime += 10;

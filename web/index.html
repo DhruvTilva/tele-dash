@@ -117,7 +117,17 @@
     <button id="settingsClose" class="primary">Close</button>
   </div>
 </div>
+<div id="pdfView" hidden>
+  <div class="pdfbar">
+    <button id="pdfClose" class="ghost">✕ Close</button>
+    <span id="pdfTitle"></span>
+    <a id="pdfDownload" class="ghost" download>⬇ Download</a>
+  </div>
+  <div id="pdfPages"></div>
+  <div id="pdfStatus"></div>
+</div>
 <div id="toast"></div>
+<script src="vendor/pdfjs/pdf.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -31,6 +31,25 @@ def kind_of(mime):
     return "file"
 
 
+def make_pdf(pages):
+    """Tiny valid PDF with a line of text per page (for demo mode)."""
+    objs = ["<</Type/Catalog/Pages 2 0 R>>",
+            "<</Type/Pages/Kids[%s]/Count %d>>" % (" ".join(f"{4 + 2 * i} 0 R" for i in range(pages)), pages),
+            "<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+    for i in range(pages):
+        text = f"BT /F1 36 Tf 72 700 Td (Demo PDF - page {i + 1}) Tj ET"
+        objs.append(f"<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Resources<</Font<</F1 3 0 R>>>>/Contents {5 + 2 * i} 0 R>>")
+        objs.append(f"<</Length {len(text)}>>\nstream\n{text}\nendstream")
+    out, offsets = b"%PDF-1.4\n", []
+    for n, o in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += f"{n} 0 obj\n{o}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+    out += "".join(f"{o:010d} 00000 n \n" for o in offsets).encode()
+    return out + f"trailer<</Size {len(objs) + 1}/Root 1 0 R>>\nstartxref\n{xref}\n%%EOF\n".encode()
+
+
 class TelegramSource:
     demo = False
 
@@ -167,11 +186,7 @@ class DemoSource:
                  "-movflags", "+faststart", str(self.video)],
                 check=True,
             )
-        if not self.pdf.exists():
-            self.pdf.write_bytes(
-                b"%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
-                b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 100]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
-            )
+        self.pdf.write_bytes(make_pdf(3))
 
     async def stop(self):
         pass

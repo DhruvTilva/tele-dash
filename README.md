@@ -37,6 +37,7 @@ Everyone who opens the site signs in with **their own** Telegram account on the 
 
 - Channel list on the left (a drawer on mobile); videos and PDFs in sequence order with clean titles taken from the `Title » ...` caption line
 - Streaming playback with seek, speed control, autoplay next, prev/next
+- PDFs open in a built-in viewer (works on phones too) with a Download button; PDF.js is bundled in `web/vendor`, no internet needed
 - Resume where you left off, watched tick, progress bar per video (saved on the server, so PC and phone stay in sync)
 - Search, filter (videos / PDFs / unwatched), sort (oldest, newest, A-Z)
 - Sync button fetches only new messages. Keyboard: `j`/`l` -10s/+10s, `n`/`p` next/prev, space play/pause

@@ -76,6 +76,18 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100
 .item .bar i { display: block; height: 100%; background: var(--accent); }
 .empty { padding: 24px; text-align: center; color: var(--dim); }
 
+/* in-app PDF viewer */
+#pdfView { position: fixed; inset: 0; z-index: 45; background: #2b2f36; display: flex; flex-direction: column; }
+.pdfbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding-top: max(8px, env(safe-area-inset-top)); }
+.pdfbar span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.pdfbar a { text-decoration: none; color: var(--text); flex: none; }
+#pdfPages { flex: 1; overflow-y: auto; padding: 8px; -webkit-overflow-scrolling: touch; }
+#pdfPages canvas { display: block; margin: 0 auto 8px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); max-width: 100%; }
+#pdfStatus { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--panel2); border-radius: 999px;
+  padding: 6px 14px; font-size: 13px; color: var(--dim); }
+#pdfStatus:empty { display: none; }
+
 /* overlays (password gate, Telegram setup, settings) + toast */
 .overlay { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 50; padding: 16px; overflow-y: auto; }
 #settings { background: rgba(0,0,0,.6); }
