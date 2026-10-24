@@ -185,6 +185,22 @@ function open(it) {
 
 /* ---------- PDF viewer (PDF.js, bundled in web/vendor) ---------- */
 let pdfRun = 0;
+async function downloadBytes(url, onProgress) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const total = +r.headers.get("Content-Length") || 0, chunks = [];
+  let got = 0;
+  const reader = r.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); got += value.length;
+    if (total) onProgress(Math.round(got / total * 100));
+  }
+  const out = new Uint8Array(got); let at = 0;
+  for (const c of chunks) { out.set(c, at); at += c.length; }
+  return out;
+}
 async function openPdf(it) {
   const run = ++pdfRun, box = $("pdfPages"), status = $("pdfStatus");
   const url = `/stream/${S.chan.id}/${it.id}`;
@@ -194,7 +210,9 @@ async function openPdf(it) {
   show("pdfView", true);
   try {
     pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js";
-    const doc = await pdfjsLib.getDocument({ url }).promise;
+    const data = await downloadBytes(url, (pct) => { if (run === pdfRun) status.textContent = `Downloading PDF... ${pct}%`; });
+    if (run !== pdfRun) return;
+    const doc = await pdfjsLib.getDocument({ data }).promise;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     for (let n = 1; n <= doc.numPages; n++) {
       status.textContent = `Rendering page ${n} of ${doc.numPages}...`;
@@ -211,7 +229,7 @@ async function openPdf(it) {
     }
     if (run === pdfRun) status.textContent = "";
   } catch (e) {
-    if (run === pdfRun) status.textContent = "Can't show this PDF here. Use Download.";
+    if (run === pdfRun) status.textContent = `Can't show this PDF (${e.message || e}). Use Download.`;
   }
 }
 function closePdf() { pdfRun++; show("pdfView", false); $("pdfPages").replaceChildren(); }
