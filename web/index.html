@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1419">
+<title>Tele Dash</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">Tele Dash</div>
+    <input id="chanSearch" type="search" placeholder="Search channels..." autocomplete="off">
+    <nav id="channels"></nav>
+    <button id="logout" class="ghost" hidden>Log out</button>
+  </aside>
+  <div id="scrim"></div>
+
+  <main>
+    <header class="topbar">
+      <button id="menu" class="icon" aria-label="Channels">☰</button>
+      <h1 id="courseTitle">Pick a channel</h1>
+      <button id="sync" class="icon" aria-label="Sync new videos" title="Sync new videos">⟳</button>
+    </header>
+
+    <div class="layout">
+      <section id="playerPane">
+        <div class="player">
+          <video id="video" controls playsinline preload="metadata"></video>
+          <div id="placeholder">Select a video from the list</div>
+        </div>
+        <div class="nowplaying">
+          <div id="nowTitle">—</div>
+          <div class="controls">
+            <button id="prev" class="ghost">⏮ Prev</button>
+            <button id="next" class="ghost">Next ⏭</button>
+            <select id="speed" aria-label="Speed">
+              <option value="0.75">0.75x</option><option value="1" selected>1x</option>
+              <option value="1.25">1.25x</option><option value="1.5">1.5x</option>
+              <option value="1.75">1.75x</option><option value="2">2x</option>
+            </select>
+            <label class="check"><input type="checkbox" id="autoplay" checked> Autoplay next</label>
+          </div>
+        </div>
+      </section>
+
+      <section id="listPane">
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="Search videos..." autocomplete="off">
+          <select id="sort" aria-label="Sort">
+            <option value="old">Oldest first</option>
+            <option value="new">Newest first</option>
+            <option value="title">Title A–Z</option>
+          </select>
+        </div>
+        <div class="chips" id="chips">
+          <button data-f="all" class="chip on">All</button>
+          <button data-f="video" class="chip">Videos</button>
+          <button data-f="pdf" class="chip">PDFs</button>
+          <button data-f="todo" class="chip">Unwatched</button>
+        </div>
+        <div id="summary"></div>
+        <ul id="items"></ul>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div id="login" hidden>
+  <form id="loginForm">
+    <h2>Tele Dash</h2>
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button type="submit">Log in</button>
+    <p id="loginErr"></p>
+  </form>
+</div>
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

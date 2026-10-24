@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+telethon>=1.36
+python-dotenv>=1.0
+# optional, makes Telegram downloads noticeably faster:
+# cryptg
