@@ -26,6 +26,10 @@ const fmtTime = (s) => {
   s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
   return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0");
 };
+const fmtLong = (s) => {
+  const m = Math.round(s / 60), h = Math.floor(m / 60);
+  return h ? `${h}h ${m % 60}m` : `${m}m`;
+};
 const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB";
 const key = (it) => `${S.chan.id}:${it.id}`;
 
@@ -163,7 +167,11 @@ function renderItems() {
   const list = visibleItems();
   const videos = S.items.filter((i) => i.kind === "video");
   const done = S.chan ? videos.filter((i) => (S.progress[key(i)] || {}).done).length : 0;
-  $("summary").textContent = S.chan ? `${videos.length} videos · ${done} watched · showing ${list.length}` : "";
+  if (S.chan) {
+    const total = videos.reduce((t, i) => t + i.duration, 0);
+    const left = videos.reduce((t, i) => t + ((S.progress[key(i)] || {}).done ? 0 : i.duration), 0);
+    $("summary").textContent = `${videos.length} videos · ${fmtLong(total)} total · ${fmtLong(left)} left · ${done} watched · showing ${list.length}`;
+  } else $("summary").textContent = "";
   if (!list.length) { ul.append(el("li", "empty", S.chan ? "Nothing here" : "Choose a channel from the menu")); return; }
   for (const it of list) {
     const p = S.progress[key(it)] || {};
